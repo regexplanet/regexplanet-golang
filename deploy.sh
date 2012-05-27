@@ -1,2 +1,2 @@
-/usr/local/google_appengine/appcfg.py update .
+/usr/local/google_appengine-go/appcfg.py update .
 

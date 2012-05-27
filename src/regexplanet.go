@@ -1,9 +1,9 @@
 package regexplanet
 
 import (
+	"encoding/json"
 	"fmt"
-	"http"
-	"json"
+	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -20,17 +20,17 @@ func root_handler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Status struct {
-	Success bool
+	Success  bool
 	Hostname string
-	Getwd string
-	TempDir string
-	Envs []string
-	Version string
-	Seconds int64
+	Getwd    string
+	TempDir  string
+	Environ  []string
+	Version  string
+	Seconds  int64
 }
 
 func status_handler(w http.ResponseWriter, r *http.Request) {
-	var err os.Error
+	var err error
 	status := Status{}
 
 	status.Getwd, err = os.Getwd()
@@ -44,9 +44,9 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status.TempDir = os.TempDir()
-	status.Envs = os.Envs
+	status.Environ = os.Environ()
 	status.Version = runtime.Version()
-	status.Seconds = time.Seconds()
+	status.Seconds = time.Now().Unix()
 	status.Success = true
 
 	var b []byte
@@ -55,7 +55,7 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b[2] == 'S' {		// HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
+	if b[2] == 'S' { // HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
 		b[2] = 's'
 	}
 
@@ -65,7 +65,7 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 
 type TestResult struct {
 	Success bool
-	Html string
+	Html    string
 }
 
 func test_handler(w http.ResponseWriter, r *http.Request) {
@@ -73,14 +73,14 @@ func test_handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf8")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET")
-	w.Header().Set("Access-Control-Max-Age", "604800") 		// 1 week
+	w.Header().Set("Access-Control-Max-Age", "604800") // 1 week
 
 	retVal := TestResult{}
 
 	retVal.Success = true
 	retVal.Html = "<div class=\"alert alert-warning\">Actually, it is a lot less than beta: the real code isn't even written yet!</div>"
 
-	var err os.Error
+	var err error
 	var b []byte
 	b, err = json.Marshal(retVal)
 	if err != nil {
@@ -88,7 +88,7 @@ func test_handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b[2] == 'S' {		// HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
+	if b[2] == 'S' { // HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
 		b[2] = 's'
 	}
 
