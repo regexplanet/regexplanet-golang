@@ -60,7 +60,19 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf8")
-	w.Write(b)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET")
+	w.Header().Set("Access-Control-Max-Age", "604800") // 1 week
+
+	var callback string = r.FormValue("callback")
+	if callback > "" {
+		w.Write([]byte(callback))
+		w.Write([]byte("("))
+		w.Write(b)
+		w.Write([]byte(");"))
+	} else {
+		w.Write(b)
+	}
 }
 
 type TestResult struct {
