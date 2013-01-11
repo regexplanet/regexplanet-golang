@@ -19,8 +19,32 @@ func root_handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Hello, RegexPlanet!")
 }
 
+func write_with_callback(w http.ResponseWriter, callback string, v interface{}) {
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET")
+	w.Header().Set("Access-Control-Max-Age", "604800") // 1 week
+
+	var b []byte
+	var err error
+	b, err = json.Marshal(v)
+	if err != nil {
+		b = []byte("{\"success\":false,\"html\":\"<p>json.Marshal failed</p>\"}")
+	}
+
+	if callback > "" {
+		w.Write([]byte(callback))
+		w.Write([]byte("("))
+		w.Write(b)
+		w.Write([]byte(");"))
+	} else {
+		w.Write(b)
+	}
+}
+
 type Status struct {
-	Success  bool
+	Success  bool		`json:"success"`
 	Hostname string
 	Getwd    string
 	TempDir  string
@@ -49,64 +73,21 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	status.Seconds = time.Now().Unix()
 	status.Success = true
 
-	var b []byte
-	b, err = json.Marshal(status)
-	if err != nil {
-		return
-	}
-
-	if b[2] == 'S' { // HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
-		b[2] = 's'
-	}
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET")
-	w.Header().Set("Access-Control-Max-Age", "604800") // 1 week
-
-	var callback string = r.FormValue("callback")
-	if callback > "" {
-		w.Write([]byte(callback))
-		w.Write([]byte("("))
-		w.Write(b)
-		w.Write([]byte(");"))
-	} else {
-		w.Write(b)
-	}
+	write_with_callback(w, r.FormValue("callback"), status)
 }
 
 type TestResult struct {
-	Success bool
-	Html    string
+	Success bool		`json:"success"`
+	Html    string		`json:"html"`
+	Message	string		`json:"message,omitempty"`
 }
 
 func test_handler(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "text/plain; charset=utf8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET")
-	w.Header().Set("Access-Control-Max-Age", "604800") // 1 week
 
 	retVal := TestResult{}
 
 	retVal.Success = true
 	retVal.Html = "<div class=\"alert alert-warning\">Actually, it is a lot less than beta: the real code isn't even written yet!</div>"
 
-	var err error
-	var b []byte
-	b, err = json.Marshal(retVal)
-	if err != nil {
-		fmt.Fprint(w, "{\"success\":false,\"html\":\"<p>json.Marshal failed</p>\"}")
-		return
-	}
-
-	if b[2] == 'S' { // HACK: it doesn't get much hackier than this, but json.Marshal doesn't marshal lower-case members.  Is there a way around this?
-		b[2] = 's'
-	}
-
-	if b[17] == 'H' {
-		b[17] = 'h'
-	}
-
-	w.Write(b)
+	write_with_callback(w, r.FormValue("callback"), retVal)
 }
