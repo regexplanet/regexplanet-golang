@@ -1,11 +1,16 @@
 package regexplanet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
+	"strconv"
+//	"strings"
 	"time"
 )
 
@@ -78,16 +83,198 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 
 type TestResult struct {
 	Success bool		`json:"success"`
-	Html    string		`json:"html"`
+	Html    string		`json:"html,omitempty"`
 	Message	string		`json:"message,omitempty"`
+}
+
+func write_ints(buffer *bytes.Buffer, data [][]int) {
+
+	if data == nil {
+		buffer.WriteString("<i>nil</i>");
+		return
+	}
+
+	for loop := 0; loop < len(data); loop++ {
+		if loop > 0 {
+			buffer.WriteString("<br/>");
+		}
+		buffer.WriteString("[");
+		buffer.WriteString(html.EscapeString(fmt.Sprintf("%d", loop)));
+		buffer.WriteString("]: ");
+
+		for inner := 0; inner < len(data[loop]); inner++ {
+			if inner > 0 {
+				buffer.WriteString(", ");
+			}
+			buffer.WriteString(html.EscapeString(fmt.Sprintf("%d", data[loop][inner])));
+		}
+	}
+}
+
+func write_strings(buffer *bytes.Buffer, data []string) {
+
+	if data == nil {
+		buffer.WriteString("<i>nil</i>");
+		return
+	}
+
+	buffer.WriteString("[");
+	for loop := 0; loop < len(data); loop++ {
+		if loop > 0 {
+			buffer.WriteString(", ");
+		}
+		buffer.WriteString("<code>")
+		buffer.WriteString(html.EscapeString(data[loop]));
+		buffer.WriteString("</code>");
+	}
+	buffer.WriteString("]");
 }
 
 func test_handler(w http.ResponseWriter, r *http.Request) {
 
-	retVal := TestResult{}
+	var strRegex = r.FormValue("regex")
+	var replacement = r.FormValue("replacement")
+	var callback = r.FormValue("callback")
 
-	retVal.Success = true
-	retVal.Html = "<div class=\"alert alert-warning\">Actually, it is a lot less than beta: the real code isn't even written yet!</div>"
+	if strRegex == "" {
+		write_with_callback(w, callback, TestResult{ false, "", "No regex to test"})
+		return
+	}
 
-	write_with_callback(w, r.FormValue("callback"), retVal)
+	var buffer bytes.Buffer
+
+	//buffer.WriteString("<div class=\"alert alert-warning\">Actually, it is a lot less than beta: the real code isn't even written yet</div>\n")
+
+	buffer.WriteString("<table class=\"table table-bordered table-striped bordered-table zebra-striped\" style=\"width:auto;\">\n");
+	buffer.WriteString("\t<tbody>\n");
+
+	buffer.WriteString("\t\t<tr>\n");
+	buffer.WriteString("\t\t\t<td>Regular Expression</td>\n");
+	buffer.WriteString("\t\t\t<td><code>");
+	buffer.WriteString(html.EscapeString(strRegex));
+	buffer.WriteString("</code></td>\n");
+	buffer.WriteString("\t\t</tr>\n");
+
+	if replacement > "" {
+		buffer.WriteString("\t\t<tr>\n");
+		buffer.WriteString("\t\t\t<td>Replacement</td>\n");
+		buffer.WriteString("\t\t\t<td><code>");
+		buffer.WriteString(html.EscapeString(replacement));
+		buffer.WriteString("</code></td>\n");
+		buffer.WriteString("\t\t</tr>\n");
+	}
+
+	buffer.WriteString("\t\t<tr>\n");
+	buffer.WriteString("\t\t\t<td>Escaped (<code>regexp.QuoteMeta(s)</code>)</td>\n");
+	buffer.WriteString("\t\t\t<td><code>");
+	buffer.WriteString(html.EscapeString(regexp.QuoteMeta(strRegex)));
+	buffer.WriteString("</code></td>\n");
+	buffer.WriteString("\t\t</tr>\n");
+
+	var re *regexp.Regexp
+	var err error;
+	re, err = regexp.Compile(strRegex)
+	if err != nil {
+		buffer.WriteString("\t\t<tr>\n");
+		buffer.WriteString("\t\t\t<td>Error</td>\n");
+		buffer.WriteString("\t\t\t<td><code>");
+		buffer.WriteString(html.EscapeString(err.Error()));
+		buffer.WriteString("</code></td>\n");
+		buffer.WriteString("\t\t</tr>\n");
+		buffer.WriteString("\t</tbody>\n");
+		buffer.WriteString("</table>\n");
+		write_with_callback(w, callback, TestResult{ false, buffer.String(), "Error when compiling regex"})
+		return
+	}
+	buffer.WriteString("\t\t<tr>\n");
+	buffer.WriteString("\t\t\t<td># of groups (<code>re.NumSubexp()</code>)</td>\n");
+	buffer.WriteString("\t\t\t<td>");
+	buffer.WriteString(html.EscapeString(fmt.Sprintf("%d", re.NumSubexp())));
+	buffer.WriteString("</td>\n");
+	buffer.WriteString("\t\t</tr>\n");
+
+	buffer.WriteString("\t</tbody>\n");
+	buffer.WriteString("</table>\n");
+
+	if r.FormValue("input") == "" {
+		buffer.WriteString("<div class=\"alert alert-warning\">No inputs to test</div>")
+		write_with_callback(w, callback, TestResult{true, buffer.String(), ""})
+		return
+	}
+
+	buffer.WriteString("<table class=\"table table-bordered table-striped bordered-table zebra-striped\" style=\"width:auto;\">\n");
+	buffer.WriteString("\t<thead>\n");
+	buffer.WriteString("\t\t<tr>\n");
+	buffer.WriteString("\t\t\t<th>Test</th>\n");
+	buffer.WriteString("\t\t\t<th>Target String</th>\n");
+	buffer.WriteString("\t\t\t<th>MatchString()</th>\n");
+	if replacement > "" {
+		buffer.WriteString("\t\t\t<th>ReplaceAllString()</th>\n");
+	}
+	buffer.WriteString("\t\t\t<th>FindAllString()</th>\n");
+	buffer.WriteString("\t\t\t<th>FindAllStringIndex()</th>\n");
+	buffer.WriteString("\t\t\t<th>FindAllStringSubmatch()</th>\n");
+	buffer.WriteString("\t\t</tr>\n");
+	buffer.WriteString("\t</thead>\n");
+
+	buffer.WriteString("\t<tbody>\n");
+
+	var inputs = r.Form["input"]
+
+	for loop := 0; loop < len(inputs); loop++ {
+		var input = inputs[loop]
+
+		if len(input) == 0 {
+			continue
+		}
+
+		buffer.WriteString("\t\t<tr>\n");
+
+		buffer.WriteString("\t\t\t<td style=\"text-align:center\">")
+		buffer.WriteString(html.EscapeString(fmt.Sprintf("%d", loop+1)));
+		buffer.WriteString("</td>\n");
+
+		buffer.WriteString("\t\t\t<td>");
+		buffer.WriteString(html.EscapeString(input));
+		buffer.WriteString("</td>\n");
+
+		buffer.WriteString("\t\t\t<td>");
+		buffer.WriteString(strconv.FormatBool(re.MatchString(input)));
+		buffer.WriteString("</td>\n");
+
+		if replacement > "" {
+			buffer.WriteString("\t\t\t<td>");
+			buffer.WriteString(html.EscapeString(re.ReplaceAllString(input, replacement)));
+			buffer.WriteString("</td>\n");
+		}
+
+		buffer.WriteString("\t\t\t<td>");
+		write_strings(&buffer, re.FindAllString(input, -1))
+		buffer.WriteString("</td>\n");
+
+		buffer.WriteString("\t\t\t<td>");
+		write_ints(&buffer, re.FindAllStringIndex(input, -1))
+		buffer.WriteString("</td>\n");
+
+		buffer.WriteString("\t\t\t<td>");
+		var data = re.FindAllStringSubmatch(input, -1)
+		if data == nil {
+			buffer.WriteString("<i>nil</i>");
+		} else {
+			for dataLoop := 0; dataLoop < len(data); dataLoop++ {
+				buffer.WriteString("[");
+				buffer.WriteString(html.EscapeString(fmt.Sprintf("%d", dataLoop)));
+				buffer.WriteString("]: ");
+				write_strings(&buffer, data[dataLoop])
+				buffer.WriteString("<br/>");
+			}
+		}
+		buffer.WriteString("</td>\n");
+		buffer.WriteString("\t</tr>\n");
+	}
+
+	buffer.WriteString("\t</tbody>\n");
+	buffer.WriteString("<table>\n");
+
+	write_with_callback(w, callback, TestResult{true, buffer.String(), ""})
 }
