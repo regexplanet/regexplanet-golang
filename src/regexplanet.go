@@ -50,12 +50,12 @@ func write_with_callback(w http.ResponseWriter, callback string, v interface{}) 
 
 type Status struct {
 	Success  bool		`json:"success"`
-	Hostname string
-	Getwd    string
-	TempDir  string
+	Version  string		`json:"version"`
 	Environ  []string
-	Version  string
+	Getwd    string
+	Hostname string
 	Seconds  int64
+	TempDir  string
 }
 
 func status_handler(w http.ResponseWriter, r *http.Request) {
