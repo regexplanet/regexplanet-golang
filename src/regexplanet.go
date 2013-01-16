@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
-//	"strings"
 	"time"
 )
 
@@ -21,7 +20,7 @@ func init() {
 }
 
 func root_handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Hello, RegexPlanet!")
+	http.Redirect(w, r, "http://www.regexplanet.com/advanced/golang/index.html", http.StatusFound)
 }
 
 func write_with_callback(w http.ResponseWriter, callback string, v interface{}) {
@@ -135,6 +134,7 @@ func test_handler(w http.ResponseWriter, r *http.Request) {
 	var strRegex = r.FormValue("regex")
 	var replacement = r.FormValue("replacement")
 	var callback = r.FormValue("callback")
+	var options = r.Form["option"]
 
 	if strRegex == "" {
 		write_with_callback(w, callback, TestResult{ false, "", "No regex to test"})
@@ -171,9 +171,28 @@ func test_handler(w http.ResponseWriter, r *http.Request) {
 	buffer.WriteString("</code></td>\n");
 	buffer.WriteString("\t\t</tr>\n");
 
-	var re *regexp.Regexp
-	var err error;
-	re, err = regexp.Compile(strRegex)
+	ifPosix := false;
+
+	if len(options) > 0 {
+		for loop := 0; loop < len(options); loop++ {
+			if options[loop] == "posix" {
+				ifPosix = true;
+			}
+		}
+	}
+
+	buffer.WriteString("\t\t<tr>\n");
+	buffer.WriteString("\t\t\t<td>Option</td>\n");
+	buffer.WriteString("\t\t\t<td><code>");
+	if (ifPosix) {
+		buffer.WriteString(html.EscapeString("CompilePOSIX()"));
+	} else {
+		buffer.WriteString(html.EscapeString("Compile()"));
+	}
+	buffer.WriteString("</code></td>\n");
+	buffer.WriteString("\t\t</tr>\n");
+
+	re, err := regexp.Compile(strRegex);
 	if err != nil {
 		buffer.WriteString("\t\t<tr>\n");
 		buffer.WriteString("\t\t\t<td>Error</td>\n");
