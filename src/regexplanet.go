@@ -20,7 +20,7 @@ func init() {
 }
 
 func root_handler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "http://www.regexplanet.com/advanced/golang/index.html", http.StatusFound)
+	http.Redirect(w, r, "https://www.regexplanet.com/advanced/golang/index.html", http.StatusFound)
 }
 
 func write_with_callback(w http.ResponseWriter, callback string, v interface{}) {
@@ -49,6 +49,11 @@ func write_with_callback(w http.ResponseWriter, callback string, v interface{}) 
 
 type Status struct {
 	Success  bool		`json:"success"`
+	Message  string		`json:"message"`
+    Timestamp string    `json:"timestamp"`
+	Commit   string		`json:"commit"`
+	Lastmod  string		`json:"lastmod"`
+	Tech  string		`json:"tech"`
 	Version  string		`json:"version"`
 	Environ  []string
 	Getwd    string
@@ -61,21 +66,26 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	status := Status{}
 
+	status.Success = true
+	status.Message = "OK"
+	status.Timestamp = time.Now().UTC().Format(time.RFC3339)
+    status.Commit = os.Getenv("COMMIT")
+    status.Lastmod = os.Getenv("LASTMOD")
+	status.Tech = runtime.Version()
+
 	status.Getwd, err = os.Getwd()
 	if err != nil {
-		status.Getwd = "ERROR!"
+		status.Getwd = "ERROR: " + err.Error()
 	}
 
 	status.Hostname, err = os.Hostname()
 	if err != nil {
-		status.Hostname = "ERROR"
+		status.Hostname = "ERROR: " + err.Error()
 	}
 
 	status.TempDir = os.TempDir()
-	status.Environ = os.Environ()
 	status.Version = runtime.Version()
 	status.Seconds = time.Now().Unix()
-	status.Success = true
 
 	write_with_callback(w, r.FormValue("callback"), status)
 }
