@@ -1,6 +1,13 @@
 #!/bin/bash
+#
+# deploy to AppEngine
+#
 
-YAML=./www/app.yaml
+set -o errexit
+set -o pipefail
+set -o nounset
+
+YAML=./app.yaml
 COMMIT=
 yq write --inplace $YAML env_variables.COMMIT $(git rev-parse --short HEAD)
 LASTMOD=$(date -u +%Y-%m-%dT%H:%M:%SZ)
