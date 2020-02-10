@@ -13,7 +13,8 @@ yq write --inplace $YAML env_variables.COMMIT $(git rev-parse --short HEAD)
 LASTMOD=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 yq write --inplace $YAML env_variables.LASTMOD $LASTMOD
 
-/usr/local/google_appengine/appcfg.py --oauth2 update .
+#/usr/local/google_appengine/appcfg.py --oauth2 update .
+gcloud app deploy --project=regexplanet-go
 
 #
 # restore committed values
