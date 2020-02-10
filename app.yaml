@@ -1,5 +1,3 @@
-application: regexplanet-go
-version: 2
 runtime: go113
 handlers:
 - url: /favicon.ico
@@ -12,8 +10,8 @@ handlers:
   static_files: robots.txt
   upload: robots.txt
 - url: /.*
-  script: _go_app
+  script: auto
 env_variables:
   COMMIT: dev
   LASTMOD: dev
-main: ./web
+main: src/regexplanet.go
