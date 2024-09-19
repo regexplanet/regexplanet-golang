@@ -1,4 +1,4 @@
-runtime: go113
+runtime: go122
 handlers:
 - url: /favicon.ico
   static_files: favicon.ico
