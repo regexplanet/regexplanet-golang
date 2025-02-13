@@ -57,6 +57,9 @@ type Status struct {
 	TempDir   string
 }
 
+var COMMIT string
+var LASTMOD string
+
 func status_handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	status := Status{}
@@ -64,8 +67,8 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	status.Success = true
 	status.Message = "OK"
 	status.Timestamp = time.Now().UTC().Format(time.RFC3339)
-	status.Commit = os.Getenv("COMMIT")
-	status.Lastmod = os.Getenv("LASTMOD")
+	status.Commit = COMMIT
+	status.Lastmod = LASTMOD
 	status.Tech = runtime.Version()
 
 	status.Getwd, err = os.Getwd()
@@ -79,7 +82,7 @@ func status_handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status.TempDir = os.TempDir()
-	status.Version = runtime.Version()
+	status.Version = runtime.Version()[2:] // remove "go" prefix
 	status.Seconds = time.Now().Unix()
 
 	write_with_callback(w, r.FormValue("callback"), status)
